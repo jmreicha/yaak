@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-notification-channels
+data:
+  notifications.json: |+
+		{
+			alert-notifications: {
+				"name": "Test email",
+				"type":  "email",
+				"isDefault": false,
+				"settings": {
+					"addresses": "josh.reichardt@gmail.com"
+				},
+			},
+		}

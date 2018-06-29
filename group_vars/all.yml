@@ -1,0 +1,23 @@
+# K8s components
+k8s_user: kube
+#k8s_overlay: weave
+k8s_overlay: flannel
+k8s_ingress: traefik
+#k8s_ingress: nginx
+
+# Versions
+#k8s_version: 1.11.0
+k8s_version: 1.10.5
+#k8s_version: 1.9.8
+#docker_version_raspbian: 17.12.1~ce-0~raspbian
+#docker_version_arm64: 17.12.1~ce-0~ubuntu
+docker_version_raspbian: 18.04.0~ce~3-0~raspbian
+docker_version_arm64: 18.04.0~ce~3-0~ubuntu
+
+# Extras
+token: udy29x.ugyyk3tumg27atmr
+addons_enabled: true
+# TODO Look at regexp/replace to control the domain name
+domain_name: thepracticalsysadmin.com
+flannel_version: v0.10.0
+podnet: 10.244.0.0/16

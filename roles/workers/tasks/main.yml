@@ -1,0 +1,43 @@
+---
+# tasks file for minions
+- name: Wait for SSH to become available
+  wait_for:
+    port: 22
+    delay: 10
+
+# TODO Only try to join cluster if master is up
+- name: Join Kubernetes Cluster
+  #shell: kubeadm join --ignore-preflight-errors=all --token {{ token }} {{ groups['master'][0] }}:6443 --discovery-token-unsafe-skip-ca-verification
+  shell: kubeadm join
+    --ignore-preflight-errors=all
+    --token {{ token }} {{ groups['master'][0] }}:6443
+    --discovery-token-unsafe-skip-ca-verification
+  #when: kubeadm_reset|succeeded
+  register: kubeadm_join
+
+- debug:
+    var: kubeadm_join.stdout_lines
+
+# Hacky way to update cadvisor listen port and allow webhook token auth
+- name: Expose cadvisor and allow webhook token auth
+  environment:
+    KUBEADM_SYSTEMD_CONF: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+  shell: |
+    sed -e "/cadvisor-port=0/d" -i "$KUBEADM_SYSTEMD_CONF"
+    if ! grep --quiet "authentication-token-webhook=true" "$KUBEADM_SYSTEMD_CONF"; then
+      sed -e "s/--authorization-mode=Webhook/--authentication-token-webhook=true --authorization-mode=Webhook/" -i "$KUBEADM_SYSTEMD_CONF"
+    fi
+
+- name: Poke kubelet
+  systemd:
+    name: kubelet
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  register: kubelet_poke
+
+- name: Label worker node
+  command: "kubectl label node {{ inventory_hostname }} node-role.kubernetes.io/node= --overwrite"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: kube-master

@@ -1,0 +1,38 @@
+---
+# tasks file for kubeadm
+- name: Wait for SSH to become available
+  wait_for:
+    port: 22
+    delay: 10
+
+# https://kubernetes.io/docs/setup/independent/install-kubeadm/
+- name: Install apt-transport-https
+  apt:
+    name: apt-transport-https
+    state: latest
+
+- name: Add Google Cloud Repo Key
+  shell: curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+- name: Add Kubernetes to Available apt Sources
+  template:
+    src: kubernetes.list
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    owner: root
+    group: root
+    mode: 0644
+
+- name: apt-get update
+  apt:
+    update_cache: yes
+    autoclean: yes
+    autoremove: yes
+
+- name: Install k8s Y'all
+  apt:
+    name: "{{ item }}={{ k8s_version }}-00"
+    force: yes
+  with_items:
+    - kubelet
+    - kubeadm
+    - kubectl

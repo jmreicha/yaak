@@ -1,0 +1,197 @@
+---
+# tasks file for common
+- name: Create Kubernetes user
+  user:
+    name: "{{ k8s_user }}"
+    shell: /bin/bash
+
+- name: Allow Kubernetes user to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: "^{{ k8s_user }}"
+    line: "{{ k8s_user }} ALL=(ALL) NOPASSWD: ALL"
+    validate: 'visudo -cf %s'
+
+- name: Set up authorized keys for Kubernetes user
+  authorized_key:
+    user: "{{ k8s_user }}"
+    state: present
+    key: '{{ item }}'
+  with_file:
+    - files/authorized_keys
+
+- name: Check for authorized_keys file for the Kubernetes user
+  stat:
+    path: "/home/{{ k8s_user }}/.ssh/authorized_keys"
+  register: authorized_keys_exists
+  ignore_errors: True
+
+- name: Disable root SSH access
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    line: "PermitRootLogin no"
+    state: present
+  notify: restart_ssh
+
+- name: Disable password authentication
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication"
+    line: "PasswordAuthentication no"
+    state: present
+  when: authorized_keys_exists.stat.exists == True
+  notify: restart_ssh
+
+- name: Enabling cgroup options at boot
+  copy:
+    src: cmdline.txt
+    dest: /boot/cmdline.txt
+    owner: root
+    group: root
+    mode: 0755
+  register: cmdline
+  tags:
+    - boot
+  when: ansible_lsb.id == "Raspbian"
+
+# https://gist.github.com/alexellis/fdbc90de7691a1b9edb545c17da2d975
+- name: Disable Swap on Raspbian
+  shell: dphys-swapfile swapoff && dphys-swapfile uninstall && update-rc.d dphys-swapfile remove
+  when: ansible_lsb.id == "Raspbian"
+
+- name: Disable Swap on other platforms
+  shell: swapoff -a
+  when: ansible_lsb.id != "Raspbian"
+
+# TODO Update RPi kernel if needed
+#- name: Update Raspbian kernel
+#  shell: rpi-update
+#  register: update_kernel
+#  tags:
+#    - boot
+#  when: ansible_lsb.id == "Raspbian"
+
+# Docker Convenience Script Can Only Be Run Once
+- name: Determine if docker is installed
+  stat:
+    path: /usr/bin/docker
+  register: docker_there
+  ignore_errors: True
+
+# TODO Figure out if this is stable
+#- name: apt-get update
+#  apt:
+#    update_cache=yes
+#    autoclean=yes
+#    autoremove=yes
+#    cache_valid_time=86400
+#
+## This will upgrade the rock64 version
+#- name: apt-get upgrade
+#  apt:
+#    upgrade=full
+
+# Only upgrade if this is a fresh install
+- name: apt-get update
+  command: apt-get update
+  when: docker_there.stat.exists == false
+
+# Use the command because the apt module tries to upgrade the kernel
+- name: apt-get upgrade
+  command: apt-get upgrade -y -q
+  when: docker_there.stat.exists == false
+
+# https://docs.docker.com/engine/installation/linux/docker-ce/debian/#install-using-the-convenience-script
+- name: Run Docker Install Script
+  script: files/get-docker.sh
+  when: docker_there.stat.exists == False
+
+# Some kernel tuning - see https://www.linux-toys.com/archives/1153
+- name: Pass bridged IPv4 traffic to iptables' chains
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    state: present
+
+- name: Adjust swapiness
+  sysctl:
+    name: vm.swappiness
+    value: 15
+    state: present
+  when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust cache pressure
+  sysctl:
+    name: vm.vfs_cache_pressure
+    value: 50
+    state: present
+  when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust dirty background ratio
+  sysctl:
+    name: vm.dirty_background_ratio
+    value: 15
+    state: present
+  when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust dirty ratio
+  sysctl:
+    name: vm.dirty_ratio
+    value: 20
+    state: present
+  when: ansible_lsb.id == "Raspbian"
+
+# TODO Fix iscsi for Rock64 devices
+- name: Install packages for added Kubernetes functionality
+  apt:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    #- open-iscsi
+    #- openvswitch-switch
+    - nfs-kernel-server
+    - nfs-common
+
+# Downgrade Docker if we need to
+- name: Downgrade Raspbian Docker
+  apt:
+    name: "docker-ce={{ docker_version_raspbian }}"
+    force: yes
+  when: ansible_lsb.id == "Raspbian"
+
+- name: Downgrade Docker on other platforms
+  apt:
+    name: "docker-ce={{ docker_version_arm64 }}"
+    force: yes
+  when: ansible_lsb.id != "Raspbian"
+
+- name: Add users to docker group
+  user:
+    name: "{{ k8s_user }}"
+    groups: docker
+    append: yes
+
+- name: Reboot - only needed if /boot/cmdline.txt changes
+  shell: sleep 2 && shutdown -r now "Ansible Reboot for /boot/cmdline.txt Change"
+  async: 1
+  poll: 0
+  ignore_errors: True
+  when: cmdline|changed
+  tags:
+    - boot
+    - shutdown
+
+- name: Wait for Reboot
+  local_action: wait_for
+  args:
+    host: "{{ inventory_hostname }}"
+    port: 22
+    delay: 15
+    timeout: 90
+  become: False
+  when: cmdline|changed
+  tags:
+    - boot
+    - shutdown

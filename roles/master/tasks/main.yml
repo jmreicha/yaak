@@ -1,0 +1,106 @@
+---
+# tasks file for master
+- name: Check if master is running
+  shell: ss -ltn | grep 6443
+  register: master_running
+  failed_when: "master_running.rc == 2"
+
+- name: Initialize Master (1.9.x)
+  shell: kubeadm init
+    --apiserver-advertise-address={{ ansible_default_ipv4.address }}
+    --token={{ token }}
+    --token-ttl=0
+    --feature-gates=CoreDNS=true
+    --kubernetes-version={{ k8s_version }}
+    --pod-network-cidr={{ podnet }}
+  register: kubeadm_init
+  when: k8s_version | search("1.9") and master_running.rc == 1
+
+- name: Initialize Master (1.10.x)
+  shell: kubeadm init
+    --apiserver-advertise-address {{ ansible_default_ipv4.address }}
+    --token {{ token }}
+    --token-ttl 0
+    --feature-gates CoreDNS=true Auditing=true
+    --kubernetes-version={{ k8s_version }}
+    --pod-network-cidr={{ podnet }}
+  register: kubeadm_init
+  when: k8s_version | search("1.10") and master_running.rc == 1
+
+- name: Initialize Master (1.11.x)
+  shell: kubeadm init
+    --apiserver-advertise-address {{ ansible_default_ipv4.address }}
+    --token {{ token }}
+    --token-ttl 0
+    --feature-gates Auditing=true
+    --kubernetes-version={{ k8s_version }}
+    --pod-network-cidr={{ podnet }}
+  register: kubeadm_init
+  when: k8s_version | search("1.11") and master_running.rc == 1
+
+# Hacky way to fix listen address since we aren't using a config file
+- name: Set kube-controller-manager to listen on public interface
+  shell: >
+    sed -e "s/- --address=127.0.0.1/- --address=0.0.0.0/" -i /etc/kubernetes/manifests/kube-controller-manager.yaml
+
+- name: Set kube-scheduler to listen on public interface
+  shell: >
+    sed -e "s/- --address=127.0.0.1/- --address=0.0.0.0/" -i /etc/kubernetes/manifests/kube-scheduler.yaml
+
+# Hacky way to update cadvisor listen port and allow webhook token auth
+- name: Expose cadvisor and allow webhook token auth
+  environment:
+    KUBEADM_SYSTEMD_CONF: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+  shell: |
+    sed -e "/cadvisor-port=0/d" -i "$KUBEADM_SYSTEMD_CONF"
+    if ! grep --quiet "authentication-token-webhook=true" "$KUBEADM_SYSTEMD_CONF"; then
+      sed -e "s/--authorization-mode=Webhook/--authentication-token-webhook=true --authorization-mode=Webhook/" -i "$KUBEADM_SYSTEMD_CONF"
+    fi
+
+- name: Poke kubelet
+  systemd:
+    name: kubelet
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  register: kubelet_poke
+
+- debug:
+    var: kubeadm_init.stdout_lines
+
+- name: Create Kubernetes config directory (locally)
+  file:
+    path: "/home/{{ k8s_user }}/.kube"
+    state: directory
+    owner: "{{ k8s_user }}"
+    group: root
+    mode: 0755
+  register: kubeconfig_path
+
+- name: Copy admin.conf to (local) config directory
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ k8s_user }}/.kube/config"
+    owner: "{{ k8s_user }}"
+    group: root
+    mode: 0755
+    remote_src: yes
+  when: kubeadm_init
+
+- name: Install Weave (Networking)
+  shell: kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+  ignore_errors: True
+  when: k8s_overlay | search("weave")
+
+- name: Install Flannel (Networking)
+  shell: "curl -sSL https://rawgit.com/coreos/flannel/{{ flannel_version }}/Documentation/kube-flannel.yml
+      | sed 's/amd64/arm64/g'
+      | kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -"
+  ignore_errors: True
+  when: k8s_overlay | search("flannel")
+
+- name: Fetch kubeconfig file
+  fetch:
+    src: /etc/kubernetes/admin.conf
+    dest: ~/.kube/config
+    flat: yes

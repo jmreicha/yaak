@@ -1,0 +1,29 @@
+- hosts: all
+  roles:
+    - { role: 'common', tags: 'common' }
+    - { role: 'kubeadm', tags: 'kubeadm' }
+
+- hosts: master
+  roles:
+    - { role: 'master', tags: 'master' }
+
+- hosts: workers
+  roles:
+    - { role: 'workers', tags: 'workers' }
+
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  become: false
+  roles:
+    - { role: 'addons', tags: 'addons' }
+
+#  # TODO Test that this works
+#  tasks:
+#    - name: Deploy remaining manifests
+#      script: ./deploy
+#      register: deploy_output
+#
+#    - name: Deployment output
+#    debug:
+#      var: deploy_output.stdout_lines

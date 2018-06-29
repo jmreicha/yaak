@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: blackbox-exporter
+  name: blackbox-exporter
+spec:
+  jobLabel: k8s-app
+  selector:
+    app: blackbox-exporter
+  namespaceSelector:
+    matchNames:
+    - monitoring
+
+  endpoints:
+  - interval: 60s
+    port: http-metrics
+    params:
+      module:
+      - http_2xx
+      target:
+      - https://thepracticalsysadmin.com
+    path: "/probe"
+    targetPort: 9115

@@ -1,0 +1,97 @@
+---
+# tasks file for dashboard
+- name: Install k8s Dashboard
+  command: kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard-arm.yaml
+  when: addons_enabled == true
+  register: k8s_dashboard
+
+- name: Kubernetes dashboard
+  debug:
+    var: k8s_dashboard.stdout_lines
+
+- name: Configure Dashboard Access
+  command: kubectl apply -f https://raw.githubusercontent.com/rak8s/rak8s/master/roles/dashboard/files/dashboard-admin.yaml
+  when: addons_enabled == true
+  register: k8s_dash_access
+
+- name: Dashboard access
+  debug:
+    var: k8s_dash_access.stdout_lines
+
+- name: Force Rebuild Dashboard Pods
+  shell: kubectl -n kube-system delete $(kubectl -n kube-system get pod -o name | grep dashboard)
+  when: addons_enabled == true
+  register: rebuild_dash_pods
+
+- name: Rebuild dashboard pods
+  debug:
+    var: rebuild_dash_pods.stdout_lines
+
+- name: Install MetalLB
+  command: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.6.2/manifests/metallb.yaml
+  when: addons_enabled == true
+  register: install_metallb
+
+- name: MetalLB configmap
+  debug:
+    var: install_metallb.stdout_lines
+
+- name: Apply MetalLB configmap
+  command: kubectl apply -f roles/addons/files/metallb-config.yml
+  when: addons_enabled == true
+  register: metallb_configmap
+
+- name: MetalLB configmap
+  debug:
+    var: metallb_configmap.stdout_lines
+
+# Enable Heapster for now because metrics-server has some issues
+- name: Install Heapster
+  command: kubectl apply -f roles/addons/files/heapster.yml
+  when: addons_enabled == true
+  register: install_heapster
+
+- name: Heapster configuration
+  debug:
+    var: install_heapster.stdout_lines
+
+# TODO Enable Metrics server - used in 1.10+ in place of Heapster
+#- name: Install Metrics Server
+#  command: kubectl apply -f "{{ item }}"
+#  with_file:
+#    - files/metrics-server.yml
+#  when: addons_enabled == true
+#  register: install_metrics_server
+
+# Assumes Helm has been installed locally already
+- name: Install Tiller (Helm)
+  shell: |
+    kubectl create -f roles/addons/files/tiller.yml
+    kubectl create serviceaccount --namespace kube-system tiller
+    kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+    helm init --tiller-image=jessestuart/tiller:v2.9.1 --service-account tiller
+  when: addons_enabled == true
+
+- name: Install Traefik Ingress controller
+  command: kubectl apply -f roles/addons/files/traefik.yml
+  when: addons_enabled == true and k8s_ingress == 'traefik'
+  register: install_traefik
+
+- name: Traefik configuration
+  debug:
+    var: install_traefik.stdout_lines
+
+- name: Install Nginx Ingress controller
+  command: kubectl apply -f roles/addons/files/nginx.yml
+  when: addons_enabled == true and k8s_ingress == 'nginx'
+  register: install_nginx
+
+- name: Nginx configuration
+  debug:
+    var: install_nginx.stdout_lines
+
+# TODO Create deployment for this
+- name: Install Ubuntu helper contianer
+  command: kubectl run -i --tty ubuntu --image=ubuntu -- bash
+  when: addons_enabled == true
+  ignore_errors: true

@@ -1,0 +1,85 @@
+---
+# Clean up the nodes first
+- hosts: workers
+  tasks:
+    - name: Drain the nodes
+      command: "kubectl drain {{ inventory_hostname }}
+        --delete-local-data --force --ignore-daemonsets"
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: kube-master
+      async: 60
+      poll: 10
+      ignore_errors: yes
+
+    - name: Remove the nodes from the cluster
+      command: "kubectl delete node {{ inventory_hostname }}"
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      delegate_to: kube-master
+      register: result
+      async: 60
+      poll: 10
+      ignore_errors: yes
+
+    - name: Show results
+      debug:
+        var: result.stdout_lines
+      delegate_to: kube-master
+
+- hosts: all
+  tasks:
+    #ansible -m shell -a 'kubeadm reset' 'workers:master' -u kube
+    - name: Reset k8s (older versions)
+      command: kubeadm reset
+      when: k8s_version | search("1.9|1.10")
+
+    - name: Reset k8s (1.11)
+      command: kubeadm reset -f
+      when: k8s_version | search("1.11")
+
+    # Check if weave binary exists
+    - stat: path=/usr/local/bin/weave
+      register: weave_path
+
+    - name: Download Weave
+      shell: |
+        curl -L git.io/weave -o /usr/local/bin/weave
+        chmod a+x /usr/local/bin/weave
+      when: weave_path.stat.exists == False
+
+    - name: Reset Weave
+      shell: weave reset --force
+
+    #- name: Clear Weave binaries
+      #shell: rm /opt/cni/bin/weave-*
+
+    - name: Reboot
+      shell: sleep 2 && shutdown -r now "Ansible Reboot for kubeadm reset"
+      async: 1
+      poll: 0
+      ignore_errors: True
+
+    - name: Wait for Reboot
+      local_action: wait_for
+      args:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        delay: 15
+        timeout: 90
+      become: False
+
+# Remove local files as part of cleanup
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  become: false
+  tasks:
+    - name: Clear known_hosts
+      shell: rm ~/.ssh/known_hosts
+
+    - name: Clear Helm files
+      shell: rm -rf ~/.helm
+
+    - name: Clear Ansible cache
+      shell: rm -rf .cache/*
