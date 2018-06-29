@@ -107,12 +107,6 @@ Then on subsequent runs (when authorized_keys has been deployed and ansible.cfg
 user has been changed to kube).
 
 ```bash
-ansible-playbook cluster.yml --limit 'kube-master' --diff
-```
-
-Or just append a user
-
-```bash
 ansible-playbook cluster.yml --limit 'kube-master' --diff -u kube
 ```
 
@@ -129,16 +123,13 @@ Then on subsequent runs (when authorized_keys has been deployed and ansible.cfg
 user has been changed to kube).
 
 ```bash
-ansible-playbook cluster.yml --limit 'kube-node-1' --diff
-```
-
-Or just append a user
-
-```bash
 ansible-playbook cluster.yml --limit 'kube-node-1' --diff -u kube
 ```
 
 ### Deploy addons separately
+
+Deploying addons separately is useful if you choose to disable addons as part of
+the cluster bootstrap.
 
 ```bash
 ansible-playbook cluster.yml --tags 'addons' --diff -u kube
@@ -148,6 +139,15 @@ ansible-playbook cluster.yml --tags 'addons' --diff -u kube
 
 ```bash
 ansible-playbook reset.yml --diff -u kube
+```
+
+### Upgrade the cluster
+
+Edit `group_vars/all.yml` and change the `k8s_version` to the new version.  Then
+run the upgrade.yml play.
+
+```bash
+ansible-playbook upgrade.yml --diff -u kube
 ```
 
 ## Interacting with Kubernetes
