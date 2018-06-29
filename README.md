@@ -1,4 +1,4 @@
-## YAAK (Yet Another Ansible Kubernetes)
+## YAAK - Yet Another Ansible Kubernetes (System)
 
 Heavily inspired by the work done by @chris-short on his
 [rak8s](https://github.com/rak8s/rak8s) project and
