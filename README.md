@@ -13,9 +13,9 @@ Be sure to check out
 [arm64-kubernetes-faq](https://github.com/vielmetti/arm64-kubernetes-faq) for
 more information about ARM based clusters.
 
-# Prerequisites
+## Prerequisites
 
-## Hardware
+### Hardware
 
 * Rock64, Raspberry Pi
 * Class 10 SD Cards
@@ -25,7 +25,7 @@ NOTE: 32-bit support appears to be deprecated for master components in
 Kubernetes 1.11, so RPi clusters don't look like they will be supported moving
 forward.
 
-## Software
+### Software
 
 * [Ansible](http://docs.ansible.com/ansible/latest/intro_installation.html) 2.2
   or higher
