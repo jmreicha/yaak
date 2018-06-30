@@ -21,9 +21,8 @@ more information about ARM based clusters.
 * Class 10 SD Cards
 * Network connection (wireless or wired) with access to the internet
 
-NOTE: 32-bit support appears to be deprecated for master components in
-Kubernetes 1.11, so RPi clusters don't look like they will be supported moving
-forward.
+NOTE: 32-bit support appears to be mostly untested in
+Kubernetes 1.11, so RPi based clusters may have issues.
 
 ### Software
 
