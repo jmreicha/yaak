@@ -91,7 +91,7 @@
     var: install_nginx.stdout_lines
 
 # TODO Create deployment for this
-- name: Install Ubuntu helper contianer
+- name: Install Ubuntu helper container
   command: kubectl run -i --tty ubuntu --image=ubuntu -- bash
   when: addons_enabled == true
   ignore_errors: true
