@@ -36,7 +36,9 @@ Kubernetes 1.11, so RPi based clusters may have issues.
 ## Stand Up Your Kubernetes Cluster
 
 Once the OS has been flashed onto the ARM device there are a few steps needed in
-order to get it working.  If you have DNS set up on your network you can set the
+order to get it working.
+
+If you have DNS set up on your network you can set the
 hostname of each node to get name resolution.  This is easier then setting
 static IPs for each server.
 
@@ -49,7 +51,7 @@ sudo hostnamectl set-hostname <name>
 You will also want to update the `/etc/hosts` file to point at the <name> that
 the host gets set to. 
 
-### Set a static IP (Raspberry Pi master only)
+### Set a static IP (Raspbian)
 
 Edit `/etc/dhcpcd.conf` and add a static entry for the master.
 
@@ -60,7 +62,43 @@ static routers=192.168.0.1
 static domain_name_servers=8.8.8.8
 ```
 
+### Set a static IP (Ubuntu)
+
+Edit `/etc/network/interfaces.d/eth0` and add a static entry for the master.
+
+```bash
+allow-hotplug
+auto eth0
+iface eth0 inet static
+address 192.168.1.1
+netmask 255.255.255.0
+gateway 192.168.1.1
+dns-nameservers 192.168.1.1 # Try local DNS first if it is available
+```
+
+In newer versions of Ubuntu (16.04+) I found the dns-nameserver setting didn't
+stick after a reboot so chose another method.
+
+```bash
+vim /etc/resolvconf/resolv.conf.d/head
+# add the following line
+nameserver 192.168.1.1
+sudo resolvconf -u
+```
+
+You may also need to flush out the old network settings.
+
+```bash
+sudo ip addr flush eth0
+sudo systemctl restart networking.service
+```
+
 Reboot the node just to make sure it gets the correct hostname/static IP.
+After configuring the network settings, SSH to make sure it works.
+
+```bash
+ssh pi@<name>
+```
 
 ### Download the latest release or clone the repo
 
@@ -76,7 +114,7 @@ liking and/or modify the IP addresses.
 ### Confirm Ansible is working
 
 ```bash
-ansible -m ping all
+ansible -m ping 'all' --ask-sudo-pass
 ```
 
 ### Deploy everything
@@ -84,7 +122,7 @@ ansible -m ping all
 On the first run you can use the defaults.
 
 ```bash
-ansible-playbook cluster.yml --diff
+ansible-playbook cluster.yml --diff --ask-sudo-pass
 ```
 
 On subsquent deployments you can specify the kube user.
@@ -99,7 +137,7 @@ Make sure to update the user in ansible.cfg  to the default user of the
 device on the first run, which can be different across devices and OSs.
 
 ```bash
-ansible-playbook cluster.yml --limit 'kube-master' --diff --check --ask-pass
+ansible-playbook cluster.yml --limit 'kube-master' --diff --ask-sudo-pass
 ```
 
 Then on subsequent runs (when authorized_keys has been deployed and ansible.cfg
@@ -127,8 +165,8 @@ ansible-playbook cluster.yml --limit 'kube-node-1' --diff -u kube
 
 ### Deploy addons separately
 
-Deploying addons separately is useful if you choose to disable addons as part of
-the cluster bootstrap.
+Deploying addons separately is useful if you choose to skip them when
+bootstrapping the cluster.
 
 ```bash
 ansible-playbook cluster.yml --tags 'addons' --diff -u kube
@@ -151,7 +189,7 @@ ansible-playbook upgrade.yml --diff -u kube
 
 ## Interacting with Kubernetes
 
-Test your Kubernetes cluster is up and running:
+After the bootstrap is done, test your Kubernetes cluster is up and running:
 
 ```bash
 kubectl get nodes
@@ -161,23 +199,21 @@ kubectl get nodes
 
 All configurable options can be found in `group_vars/all.yml`.
 
-Using these variables you can control things like the Kubernetes version that
-gets deployed, which version of Docker to use as well as various other knobs
-like whether or not to enable addons.
+Using these variables you can control things like the Kubernetes version, 
+Docker version as well as various other tunables like whether or not to enable addons.
 
 ### Deploy extras
 
 There is a directory named `manifests` that contains additional Kubernetes
 components that can be deployed by running the `deploy` script.
 
-These manifests community maintained versions of software to support ARM so
-aren't always official.  As support matures, these manifests will be updated.
+These manifests are community maintained ARM versions soaren't always official.
 
 ```bash
 ./deploy
 ```
 
-Likewise, these components can be removed using the `teardown` script.
+These additional components can be removed using the `teardown` script.
 
 ```bash
 ./teardown
