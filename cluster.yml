@@ -18,12 +18,12 @@
   roles:
     - { role: 'addons', tags: 'addons' }
 
-#  # TODO Test that this works
+#  # Uncomment to deploy everything
 #  tasks:
 #    - name: Deploy remaining manifests
 #      script: ./deploy
 #      register: deploy_output
 #
 #    - name: Deployment output
-#    debug:
-#      var: deploy_output.stdout_lines
+#      debug:
+#        var: deploy_output.stdout_lines

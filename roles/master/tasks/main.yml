@@ -1,5 +1,33 @@
 ---
-# tasks file for master
+# Tune the kernel for better disk performance (etcd)
+- name: Adjust swapiness
+  sysctl:
+    name: vm.swappiness
+    value: 15
+    state: present
+  #when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust cache pressure
+  sysctl:
+    name: vm.vfs_cache_pressure
+    value: 50
+    state: present
+  #when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust dirty background ratio
+  sysctl:
+    name: vm.dirty_background_ratio
+    value: 15
+    state: present
+  #when: ansible_lsb.id == "Raspbian"
+
+- name: Adjust dirty ratio
+  sysctl:
+    name: vm.dirty_ratio
+    value: 20
+    state: present
+  #when: ansible_lsb.id == "Raspbian"
+
 - name: Check if master is running
   shell: ss -ltn | grep 6443
   register: master_running
@@ -27,6 +55,11 @@
   register: kubeadm_init
   when: k8s_version | search("1.10") and master_running.rc == 1
 
+# Avoid failures on first run.  Works in 1.11+.
+- name: Pre-pull images
+  shell: kubeadm config images pull
+  when: k8s_version | search("1.11")
+
 - name: Initialize Master (1.11.x)
   shell: kubeadm init
     --apiserver-advertise-address {{ ansible_default_ipv4.address }}
@@ -37,6 +70,9 @@
     --pod-network-cidr={{ podnet }}
   register: kubeadm_init
   when: k8s_version | search("1.11") and master_running.rc == 1
+
+- debug:
+    var: kubeadm_init.stdout_lines
 
 # Hacky way to fix listen address since we aren't using a config file
 - name: Set kube-controller-manager to listen on public interface
@@ -57,6 +93,8 @@
       sed -e "s/--authorization-mode=Webhook/--authentication-token-webhook=true --authorization-mode=Webhook/" -i "$KUBEADM_SYSTEMD_CONF"
     fi
 
+# TODO Fix flannel by removing $KUBELET_NETWORK_ARGS from /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+
 - name: Poke kubelet
   systemd:
     name: kubelet
@@ -64,9 +102,6 @@
     daemon_reload: yes
     enabled: yes
   register: kubelet_poke
-
-- debug:
-    var: kubeadm_init.stdout_lines
 
 - name: Create Kubernetes config directory (locally)
   file:
@@ -93,7 +128,7 @@
   when: k8s_overlay | search("weave")
 
 - name: Install Flannel (Networking)
-  shell: "curl -sSL https://rawgit.com/coreos/flannel/{{ flannel_version }}/Documentation/kube-flannel.yml
+  shell: "curl -sSL https://raw.githubusercontent.com/coreos/flannel/{{ flannel_version }}/Documentation/kube-flannel.yml
       | sed 's/amd64/arm64/g'
       | kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -"
   ignore_errors: True

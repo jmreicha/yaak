@@ -45,32 +45,25 @@
   debug:
     var: metallb_configmap.stdout_lines
 
-# Enable Heapster for now because metrics-server has some issues
 - name: Install Heapster
   command: kubectl apply -f roles/addons/files/heapster.yml
-  when: addons_enabled == true
+  when: addons_enabled == true and k8s_version | search("1.9")
   register: install_heapster
 
-- name: Heapster configuration
-  debug:
-    var: install_heapster.stdout_lines
-
-# TODO Enable Metrics server - used in 1.10+ in place of Heapster
-#- name: Install Metrics Server
-#  command: kubectl apply -f "{{ item }}"
-#  with_file:
-#    - files/metrics-server.yml
-#  when: addons_enabled == true
-#  register: install_metrics_server
+- name: Install Metrics Server
+  command: kubectl apply -f roles/addons/files/metrics-server.yml
+  when: addons_enabled == true and k8s_version | search("1.10|1.11")
+  register: install_metrics_server
 
 # Assumes Helm has been installed locally already
 - name: Install Tiller (Helm)
   shell: |
-    kubectl create -f roles/addons/files/tiller.yml
+    #kubectl create -f roles/addons/files/tiller.yml
     kubectl create serviceaccount --namespace kube-system tiller
     kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
     helm init --tiller-image=jessestuart/tiller:v2.9.1 --service-account tiller
   when: addons_enabled == true
+  ignore_errors: true
 
 - name: Install Traefik Ingress controller
   command: kubectl apply -f roles/addons/files/traefik.yml

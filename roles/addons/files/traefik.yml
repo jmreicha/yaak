@@ -64,6 +64,7 @@ spec:
     - protocol: TCP
       port: 443
       name: https
+    # Metrics get exposed on this port
     - protocol: TCP
       port: 8080
       name: admin
@@ -135,8 +136,7 @@ metadata:
   labels:
     k8s-app: traefik-ingress-lb
 spec:
-  #replicas: 2
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       k8s-app: traefik-ingress-lb

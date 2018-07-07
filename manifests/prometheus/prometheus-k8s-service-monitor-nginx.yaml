@@ -1,17 +1,18 @@
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: traefik-ingress-metrics
+  name: nginx-ingress-metrics
   labels:
-    k8s-app: traefik-ingress-lb
+    k8s-app: ingress-nginx
 spec:
   jobLabel: k8s-app
   endpoints:
-  - port: admin
+  - port: metrics
     interval: 30s
   selector:
     matchLabels:
-      k8s-app: traefik-ingress-lb
+      k8s-app: ingress-nginx
   namespaceSelector:
     matchNames:
     - ingress

@@ -65,7 +65,7 @@
   shell: swapoff -a
   when: ansible_lsb.id != "Raspbian"
 
-# TODO Update RPi kernel if needed
+# Update RPi kernel if needed
 #- name: Update Raspbian kernel
 #  shell: rpi-update
 #  register: update_kernel
@@ -73,7 +73,7 @@
 #    - boot
 #  when: ansible_lsb.id == "Raspbian"
 
-# Docker Convenience Script Can Only Be Run Once
+# Docker convenience script can only be run once
 - name: Determine if docker is installed
   stat:
     path: /usr/bin/docker
@@ -115,34 +115,6 @@
     value: 1
     state: present
 
-- name: Adjust swapiness
-  sysctl:
-    name: vm.swappiness
-    value: 15
-    state: present
-  when: ansible_lsb.id == "Raspbian"
-
-- name: Adjust cache pressure
-  sysctl:
-    name: vm.vfs_cache_pressure
-    value: 50
-    state: present
-  when: ansible_lsb.id == "Raspbian"
-
-- name: Adjust dirty background ratio
-  sysctl:
-    name: vm.dirty_background_ratio
-    value: 15
-    state: present
-  when: ansible_lsb.id == "Raspbian"
-
-- name: Adjust dirty ratio
-  sysctl:
-    name: vm.dirty_ratio
-    value: 20
-    state: present
-  when: ansible_lsb.id == "Raspbian"
-
 # TODO Fix iscsi for Rock64 devices
 - name: Install packages for added Kubernetes functionality
   apt:
@@ -167,7 +139,7 @@
     force: yes
   when: ansible_lsb.id != "Raspbian"
 
-- name: Add users to docker group
+- name: Add k8s user to docker group
   user:
     name: "{{ k8s_user }}"
     groups: docker

@@ -6,8 +6,8 @@ k8s_ingress: traefik
 #k8s_ingress: nginx
 
 # Versions
-#k8s_version: 1.11.0
-k8s_version: 1.10.5
+k8s_version: 1.11.0
+#k8s_version: 1.10.5
 #k8s_version: 1.9.8
 #docker_version_raspbian: 17.12.1~ce-0~raspbian
 #docker_version_arm64: 17.12.1~ce-0~ubuntu
@@ -21,3 +21,4 @@ addons_enabled: true
 domain_name: thepracticalsysadmin.com
 flannel_version: v0.10.0
 podnet: 10.244.0.0/16
+metallb_range: 192.168.1.11-192.168.1.20

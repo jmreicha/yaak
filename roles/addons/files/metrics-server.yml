@@ -125,6 +125,5 @@ spec:
         imagePullPolicy: Always
         command:
         - /metrics-server
-        - --source=kubernetes.summary_api:''
-        # TODO See if this works
-        #- --source=kubernetes:https://kubernetes.default
+        #- --source=kubernetes.summary_api:''
+        - --source=kubernetes:https://kubernetes.default
