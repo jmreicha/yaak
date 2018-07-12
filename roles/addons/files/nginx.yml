@@ -263,9 +263,6 @@ spec:
       labels:
         name: nginx-ingress-controller
         k8s-app: ingress-nginx
-      annotations:
-        prometheus.io/port: '10254'
-        prometheus.io/scrape: 'true'
     spec:
       serviceAccountName: nginx-ingress-serviceaccount
       containers:
