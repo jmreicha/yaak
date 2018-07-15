@@ -73,58 +73,55 @@
 #    - boot
 #  when: ansible_lsb.id == "Raspbian"
 
-# Docker convenience script can only be run once
+# Docker install script should only be run once
 - name: Determine if docker is installed
   stat:
     path: /usr/bin/docker
   register: docker_there
   ignore_errors: True
 
+- name: Determine if aptitude is installed
+  stat:
+    path: /usr/bin/aptitude
+  register: aptitude_exists
+  ignore_errors: True
+
+- name: Install aptitude (for Ansible)
+  command: apt-get install -y aptitude
+  when: aptitude_exists.stat.exists == False
+
 # TODO Figure out if this is stable
-#- name: apt-get update
-#  apt:
-#    update_cache=yes
-#    autoclean=yes
-#    autoremove=yes
-#    cache_valid_time=86400
-#
-## This will upgrade the rock64 version
-#- name: apt-get upgrade
-#  apt:
-#    upgrade=full
-
-# Only upgrade if this is a fresh install
-- name: apt-get update
-  command: apt-get update
-  when: docker_there.stat.exists == false
-
-# Use the command because the apt module tries to upgrade the kernel
-- name: apt-get upgrade
-  command: apt-get upgrade -y -q
-  when: docker_there.stat.exists == false
-
-# https://docs.docker.com/engine/installation/linux/docker-ce/debian/#install-using-the-convenience-script
-- name: Run Docker Install Script
-  script: files/get-docker.sh
+- name: Update packages
+  apt:
+    update_cache=yes
+    autoclean=yes
+    autoremove=yes
+    cache_valid_time=86400
   when: docker_there.stat.exists == False
 
-# Some kernel tuning - see https://www.linux-toys.com/archives/1153
-- name: Pass bridged IPv4 traffic to iptables' chains
-  sysctl:
-    name: net.bridge.bridge-nf-call-iptables
-    value: 1
-    state: present
-
-# TODO Fix iscsi for Rock64 devices
-- name: Install packages for added Kubernetes functionality
+# This will upgrade the rock64 headers if there is a new version
+- name: Upgrade packages
   apt:
-    name: "{{ item }}"
-    state: installed
-  with_items:
-    #- open-iscsi
-    #- openvswitch-switch
-    - nfs-kernel-server
-    - nfs-common
+    upgrade=full
+  when: docker_there.stat.exists == False
+
+# Only upgrade if this is a fresh install
+#- name: apt-get update
+#  command: apt-get update
+#  when: docker_there.stat.exists == False
+
+# Use the command because the apt module tries to upgrade the kernel
+#- name: apt-get upgrade
+#  command: apt-get upgrade -y -q
+#  when: docker_there.stat.exists == False
+
+- name: Download Docker install script
+  get_url: url=https://get.docker.com dest=/tmp/get-docker.sh mode=0755
+  when: docker_there.stat.exists == False
+
+- name: Install Docker
+  shell: /tmp/get-docker.sh
+  when: docker_there.stat.exists == False
 
 # Downgrade Docker if we need to
 - name: Downgrade Raspbian Docker
@@ -144,6 +141,24 @@
     name: "{{ k8s_user }}"
     groups: docker
     append: yes
+
+- name: Pass bridged IPv4 traffic to iptables' chains
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 1
+    state: present
+
+# TODO Fix iscsi and add OVS modules for Rock64 devices
+- name: Install packages for added Kubernetes functionality
+  apt:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    #- open-iscsi
+    - openvswitch-switch
+    - openvswitch-common
+    - nfs-kernel-server
+    - nfs-common
 
 - name: Reboot - only needed if /boot/cmdline.txt changes
   shell: sleep 2 && shutdown -r now "Ansible Reboot for /boot/cmdline.txt Change"

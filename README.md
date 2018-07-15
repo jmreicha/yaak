@@ -76,8 +76,24 @@ gateway 192.168.1.1
 dns-nameservers 192.168.1.1 # Try local DNS first if it is available
 ```
 
-In newer versions of Ubuntu (16.04+) I found the dns-nameserver setting didn't
-stick after a reboot so chose another method.
+If using Ubuntu 18.04 the above step can be skipped.  Instead, 18.04 uses
+`netplan`, so you will want to edit `/etc/netplan/eth0.yml`.
+
+```
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+     dhcp4: no
+     addresses: [192.168.1.1/24]
+     gateway4: 192.168.1.1
+     nameservers:
+       addresses: [192.168.1.1]
+```
+
+In Ubuntu 16.04+ I found the dns-nameserver setting didn't stick after a reboot
+so chose another method.
 
 ```bash
 vim /etc/resolvconf/resolv.conf.d/head
@@ -86,7 +102,7 @@ nameserver 192.168.1.1
 sudo resolvconf -u
 ```
 
-You may also need to flush out the old network settings.
+You may also need to flush out the old network settings on older systems.
 
 ```bash
 sudo ip addr flush eth0
@@ -199,8 +215,8 @@ kubectl get nodes
 
 All configurable options can be found in `group_vars/all.yml`.
 
-Using these variables you can control things like the Kubernetes version, 
-Docker version as well as various other tunables like whether or not to enable addons.
+Using these variables you can control things like the Kubernetes version, Docker
+version as well as various other tunables like whether or not to enable addons.
 
 ### Deploy extras
 
@@ -225,3 +241,4 @@ These additional components can be removed using the `teardown` script.
 * [kubernetes-arm](https://github.com/carlosedp/kubernetes-arm)
 * [prometheus-arm](https://github.com/carlosedp/prometheus-ARM)
 * [prometheus-operator-arm](https://github.com/carlosedp/prometheus-operator-ARM)
+* [arm64-kubernetes-faq](https://github.com/vielmetti/arm64-kubernetes-faq)

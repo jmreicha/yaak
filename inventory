@@ -6,3 +6,7 @@ kube-node-4
 
 [master]
 kube-master
+
+[all:vars]
+# Python3 ships with Ubuntu 16.04+
+ansible_python_interpreter=/usr/bin/python3

@@ -52,7 +52,7 @@
     --feature-gates CoreDNS=true Auditing=true
     --kubernetes-version={{ k8s_version }}
     --pod-network-cidr={{ podnet }}
-  register: kubeadm_init
+  register: kubeadm_init_10
   when: k8s_version | search("1.10") and master_running.rc == 1
 
 # Avoid failures on first run.  Works in 1.11+.
@@ -68,11 +68,14 @@
     --feature-gates Auditing=true
     --kubernetes-version={{ k8s_version }}
     --pod-network-cidr={{ podnet }}
-  register: kubeadm_init
+  register: kubeadm_init_11
   when: k8s_version | search("1.11") and master_running.rc == 1
 
 - debug:
-    var: kubeadm_init.stdout_lines
+    var: kubeadm_init_10.stdout_lines
+
+- debug:
+    var: kubeadm_init_11.stdout_lines
 
 # Hacky way to fix listen address since we aren't using a config file
 - name: Set kube-controller-manager to listen on public interface
