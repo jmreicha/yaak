@@ -31,6 +31,7 @@ Kubernetes 1.11, so RPi based clusters may have issues.
 * [`kubectl`](https://kubernetes.io/docs/tasks/tools/install-kubectl/) should be
   available on the system you intend to use to interact with the Kubernetes
   cluster.
+* [bionic-minimal-rock64-0.6.44-239-arm64 image](https://github.com/ayufan-rock64/linux-build/releases/tag/0.6.44) 
 * Ability to SSH into all devices and escalate privileges with sudo
 
 ## Stand Up Your Kubernetes Cluster
@@ -62,7 +63,7 @@ static routers=192.168.0.1
 static domain_name_servers=8.8.8.8
 ```
 
-### Set a static IP (Ubuntu)
+### Set a static IP (Ubuntu 16.04)
 
 Edit `/etc/network/interfaces.d/eth0` and add a static entry for the master.
 
@@ -76,8 +77,9 @@ gateway 192.168.1.1
 dns-nameservers 192.168.1.1 # Try local DNS first if it is available
 ```
 
-If using Ubuntu 18.04 the above step can be skipped.  Instead, 18.04 uses
-`netplan`, so you will want to edit `/etc/netplan/eth0.yml`.
+### Set a static IP (Ubuntu 18.04)
+
+Ubuntu 18.04 uses `netplan`, so you will want to edit `/etc/netplan/eth0.yml`.
 
 ```
 network:
@@ -92,7 +94,7 @@ network:
        addresses: [192.168.1.1]
 ```
 
-In Ubuntu 16.04+ I found the dns-nameserver setting didn't stick after a reboot
+In Ubuntu 16.04 I found the dns-nameserver setting didn't stick after a reboot
 so chose another method.
 
 ```bash
