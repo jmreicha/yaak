@@ -148,17 +148,17 @@
     value: 1
     state: present
 
-# TODO Fix iscsi and add OVS modules for Rock64 devices
 - name: Install packages for added Kubernetes functionality
   apt:
     name: "{{ item }}"
     state: installed
   with_items:
-    #- open-iscsi
+    - open-iscsi
     - openvswitch-switch
     - openvswitch-common
     - nfs-kernel-server
     - nfs-common
+    #- ipvsadm
 
 - name: Reboot - only needed if /boot/cmdline.txt changes
   shell: sleep 2 && shutdown -r now "Ansible Reboot for /boot/cmdline.txt Change"
