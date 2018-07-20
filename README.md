@@ -94,7 +94,9 @@ network:
        addresses: [192.168.1.1]
 ```
 
-In Ubuntu 16.04 I found the dns-nameserver setting didn't stick after a reboot
+Then restart the networking with `sudo netplan apply`.
+
+In Ubuntu 16.04/18.04 I found the dns-nameserver setting didn't stick after a reboot
 so chose another method.
 
 ```bash
