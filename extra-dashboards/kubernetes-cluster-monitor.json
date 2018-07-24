@@ -213,7 +213,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "(sum(rpi_up == 1) / sum(rpi_up)) * 100",
+          "expr": "(sum(rpi_scrape_collector_success == 1) / sum(rpi_scrape_collector_success)) * 100",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "",
